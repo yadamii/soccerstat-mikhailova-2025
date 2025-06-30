@@ -4,7 +4,9 @@
     <v-col class="page-breadcrumb mb-4" cols="12">
       <router-link to="/leagues" class="breadcrumb-link">Лиги</router-link>
       <span> &gt; </span>
-      <span style="color: #065f46;">Матчи команды <i>{{ teamName }}</i></span>
+      <span style="color: #065f46"
+        >Матчи команды <i>{{ teamName }}</i></span
+      >
     </v-col>
 
     <!-- Заголовки -->
@@ -50,7 +52,7 @@
               </v-col>
             </v-row>
 
-            <v-row justify="center" class="mt-4">
+            <v-row justify="center" class="mt-4" style="mask-border: 12px">
               <v-btn @click="clearFilter" color="emerald" variant="tonal">
                 Очистить фильтр
               </v-btn>
@@ -64,11 +66,10 @@
         :headers="headers"
         :items="filteredMatches"
         :items-per-page="itemsPerPage"
-        class="elevation-2 custom-data-table"
-        v-if="!isLoading"
+        class="elevation-2"
       >
         <template #item.utcDate="{ item }">
-          {{ formatDate(item.utcDate) }}
+          {{ new Date(item.utcDate).toLocaleString("ru-RU") }}
         </template>
 
         <template #item.status="{ item }">
@@ -99,7 +100,8 @@
           <b v-if="item.status === 'SCHEDULED'">Матч ещё не состоялся</b>
           <b v-else-if="item.status === 'TIMED'">Перерыв между таймами</b>
           <b v-else>
-            {{ item.score?.fullTime?.home ?? '-' }} : {{ item.score?.fullTime?.away ?? '-' }}
+            {{ item.score?.halfTime?.home ?? "-" }} :
+            {{ item.score?.halfTime?.away ?? "-" }}
           </b>
         </template>
       </v-data-table>
@@ -108,10 +110,10 @@
 </template>
 
 <script>
-import api from '@/api'
+import api from "@/api";
 
 export default {
-  name: 'MatchesTable',
+  name: "MatchesTable",
   data() {
     return {
       dateFrom: null,
@@ -119,96 +121,95 @@ export default {
       itemsPerPage: 12,
       matches: [],
       isLoading: false,
-      teamName: '',
+      teamName: "", // желательно загрузить имя команды в mounted
       headers: [
-        { text: 'Дата', value: 'utcDate', align: 'center' },
-        { text: 'Статус', value: 'status', align: 'center' },
-        { text: 'Команда Хозяев', value: 'homeTeam', align: 'center' },
-        { text: 'Команда Гостей', value: 'awayTeam', align: 'center' },
-        { text: 'Счёт', value: 'score', align: 'center' }
-      ]
-    }
+        { key: "utcDate", title: "Дата" },
+        { key: "status", title: "Статус" },
+        { key: "homeTeam", title: "Команда хозяев" },
+        { key: "awayTeam", title: "Команда гостей" },
+        { key: "score", title: "Счёт" },
+      ],
+    };
   },
   computed: {
     currentTeamId() {
-      return String(this.$route.params.id) || ''
+      return String(this.$route.params.id) || "";
     },
     filteredMatches() {
-      return this.matches.filter(match => {
-        const matchDate = new Date(match.utcDate).getTime()
-        const from = this.dateFrom ? new Date(this.dateFrom).setHours(0, 0, 0, 0) : null
-        const to = this.dateTo ? new Date(this.dateTo).setHours(23, 59, 59, 999) : null
-        return (!from || matchDate >= from) && (!to || matchDate <= to)
-      })
-    }
+      return this.matches.filter((match) => {
+        const matchDate = new Date(match.utcDate).getTime();
+        const from = this.dateFrom
+          ? new Date(this.dateFrom).setHours(0, 0, 0, 0)
+          : null;
+        const to = this.dateTo
+          ? new Date(this.dateTo).setHours(23, 59, 59, 999)
+          : null;
+        return (!from || matchDate >= from) && (!to || matchDate <= to);
+      });
+    },
   },
   methods: {
     clearFilter() {
-      this.dateFrom = null
-      this.dateTo = null
+      this.dateFrom = null;
+      this.dateTo = null;
     },
     getStatusText(status) {
       const statusMap = {
-        FINISHED: 'Матч завершен',
-        SCHEDULED: 'Запланирован',
-        LIVE: 'В прямом эфире',
-        TIMED: 'Перерыв',
-        IN_PLAY: 'В игре',
-        POSTPONED: 'Отложен',
-        SUSPENDED: 'Приостановлен',
-        CANCELED: 'Отменён'
-      }
-      return statusMap[status] || status
+        FINISHED: "Матч завершен",
+        SCHEDULED: "Запланирован",
+        LIVE: "В прямом эфире",
+        TIMED: "Перерыв",
+        IN_PLAY: "В игре",
+        POSTPONED: "Отложен",
+        SUSPENDED: "Приостановлен",
+        CANCELED: "Отменён",
+      };
+      return statusMap[status] || status;
     },
     getStatusColor(status) {
       const statusMap = {
-        FINISHED: 'green',
-        SCHEDULED: 'grey',
-        LIVE: 'red',
-        TIMED: 'orange',
-        IN_PLAY: 'emerald',
-        POSTPONED: 'blue-grey',
-        SUSPENDED: 'purple',
-        CANCELED: 'red darken-4'
-      }
-      return statusMap[status] || 'default'
+        FINISHED: "green",
+        SCHEDULED: "grey",
+        LIVE: "red",
+        TIMED: "orange",
+        IN_PLAY: "emerald",
+        POSTPONED: "blue-grey",
+        SUSPENDED: "purple",
+        CANCELED: "red darken-4",
+      };
+      return statusMap[status] || "default";
     },
-    formatDate(dateString) {
-      return new Date(dateString).toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    },
-    async loadTeamName() {
-      try {
-        const response = await api.get(`/api/v4/teams/${this.currentTeamId}`)
-        this.teamName = response.data.name || 'Неизвестная команда'
-      } catch (error) {
-        console.error('Ошибка загрузки названия команды:', error)
-        this.teamName = 'Неизвестная команда'
+    loadMatches() {
+      this.isLoading = true;
+      const teamId = this.currentTeamId;
+      if (!teamId) {
+        console.error("Team ID не задан");
+        this.isLoading = false;
+        return;
       }
+      api
+        .get(`/api/v4/teams/${teamId}/matches`)
+        .then((response) => {
+          this.matches = response.data.matches || [];
+          if (this.matches.length) {
+            this.teamName =
+              this.matches[0].homeTeam.name === this.currentTeamId
+                ? this.matches[0].homeTeam.name
+                : this.matches[0].awayTeam.name;
+          }
+        })
+        .catch((error) => {
+          console.error("Ошибка загрузки матчей:", error);
+        })
+        .finally(() => {
+          this.isLoading = false;
+        });
     },
-    async loadMatches() {
-      this.isLoading = true
-      try {
-        const response = await api.get(`/api/v4/teams/${this.currentTeamId}/matches`)
-        this.matches = response.data.matches || []
-      } catch (error) {
-        console.error('Ошибка загрузки матчей:', error)
-        this.matches = []
-      } finally {
-        this.isLoading = false
-      }
-    }
   },
-  async mounted() {
-    await this.loadTeamName()
-    this.loadMatches()
-  }
-}
+  mounted() {
+    this.loadMatches();
+  },
+};
 </script>
 
 <style scoped>
@@ -238,7 +239,7 @@ export default {
   font-size: 2.6rem;
   font-weight: 700;
   margin-bottom: 32px;
-  color: #10b981;
+  color: #10b981; /* emerald */
   padding-bottom: 0.3em;
   border-bottom: 3px solid #10b981;
 }
@@ -259,7 +260,6 @@ export default {
 
 .match-wrapper {
   padding: 24px;
-  overflow-x: auto;
 }
 
 .v-expansion-panel-title {
@@ -270,17 +270,5 @@ export default {
 
 .v-data-table {
   border-radius: 12px;
-}
-
-/* Стили для заголовков таблицы */
-:deep(.custom-data-table .v-data-table__th) {
-  color: #031812 !important;
-  font-weight: bold !important;
-  font-size: 16px !important;
-  background-color: #f0fdf4 !important;
-}
-
-:deep(.custom-data-table .v-data-table__thead) {
-  background-color: #f0fdf4 !important;
 }
 </style>
